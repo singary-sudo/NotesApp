@@ -1,20 +1,156 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>
-      Blank
-    </ion-title>
+    <ion-title>Notes</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" class="notes-content">
   <ion-header collapse="condense">
     <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
+      <ion-title size="large">Notes</ion-title>
     </ion-toolbar>
   </ion-header>
 
-  <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
+  <div class="page-shell">
+    <ion-searchbar
+      [(ngModel)]="searchText"
+      placeholder="Search notes"
+      animated="true">
+    </ion-searchbar>
+
+    <div class="section-heading">
+      <span>{{ filteredNotes.length }} {{ filteredNotes.length === 1 ? 'note' : 'notes' }}</span>
+    </div>
+
+    <div class="notes-grid" *ngIf="filteredNotes.length > 0">
+      <ion-card
+        class="note-card"
+        *ngFor="let note of filteredNotes"
+        (click)="openNote(note)">
+        <ion-card-header>
+          <ion-card-title>{{ note.title || 'Untitled' }}</ion-card-title>
+          <ion-card-subtitle>{{ formatDate(note.updatedAt) }}</ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          <img
+            *ngIf="note.photos.length"
+            class="card-photo"
+            [src]="note.photos[0]"
+            alt="Note photo"
+            (click)="openPhoto(note.photos[0], $event)">
+          <p>{{ note.content || (note.photos.length ? 'Photo note' : 'No additional text') }}</p>
+          <ion-button
+            fill="clear"
+            size="small"
+            color="danger"
+            class="delete-button"
+            (click)="$event.stopPropagation(); confirmDelete(note)">
+            Delete
+          </ion-button>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <div class="empty-state" *ngIf="filteredNotes.length === 0">
+      <div class="empty-mark">N</div>
+      <h2>{{ searchText ? 'No matching notes' : 'No notes yet' }}</h2>
+      <p>{{ searchText ? 'Try another search.' : 'Tap the button below to create your first note.' }}</p>
+    </div>
   </div>
+
+  <ion-fab slot="fixed" vertical="bottom" horizontal="end">
+    <ion-fab-button (click)="openNewNote()" aria-label="Create note">
+      <span class="plus">+</span>
+    </ion-fab-button>
+  </ion-fab>
+
+  <ion-modal [isOpen]="isEditorOpen" (didDismiss)="isEditorOpen = false">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar>
+          <ion-buttons slot="start">
+            <ion-button (click)="isEditorOpen = false">Cancel</ion-button>
+          </ion-buttons>
+          <ion-title>{{ draft.title ? 'Edit note' : 'New note' }}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button strong="true" (click)="saveNote(true)">Done</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="editor-content">
+        <div class="save-status">{{ saveStatus }}</div>
+
+        <ion-input
+          class="title-input"
+          label="Title"
+          label-placement="stacked"
+          [(ngModel)]="draft.title"
+          (ngModelChange)="scheduleAutoSave()"
+          placeholder="Note title">
+        </ion-input>
+
+        <ion-textarea
+          class="body-input"
+          label="Note"
+          label-placement="stacked"
+          [(ngModel)]="draft.content"
+          (ngModelChange)="scheduleAutoSave()"
+          placeholder="Start writing..."
+          [autoGrow]="true">
+        </ion-textarea>
+
+        <div class="photo-actions">
+          <ion-button fill="outline" (click)="takeCameraPhoto()">
+            Camera
+          </ion-button>
+          <ion-button fill="outline" (click)="chooseLibraryPhoto()">
+            Photos
+          </ion-button>
+        </div>
+
+        <div class="photo-grid" *ngIf="draft.photos.length">
+          <div class="photo-item" *ngFor="let photo of draft.photos; let i = index">
+            <img [src]="photo" alt="Note photo" (click)="openPhoto(photo)">
+            <ion-button
+              fill="clear"
+              size="small"
+              color="danger"
+              (click)="removePhoto(i)">
+              Remove
+            </ion-button>
+          </div>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+  <ion-modal
+    class="photo-modal"
+    [isOpen]="selectedPhoto !== null"
+    (didDismiss)="closePhoto()">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>Photo</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="zoomPhoto(-0.25)">−</ion-button>
+            <ion-button (click)="photoScale = 1">{{ (photoScale * 100).toFixed(0) }}%</ion-button>
+            <ion-button (click)="zoomPhoto(0.25)">+</ion-button>
+            <ion-button (click)="closePhoto()">Close</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="photo-viewer">
+        <div class="photo-zoom-area">
+          <img
+            *ngIf="selectedPhoto"
+            [src]="selectedPhoto"
+            [style.transform]="'scale(' + photoScale + ')'"
+            alt="Full-size note photo">
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
 </ion-content>
